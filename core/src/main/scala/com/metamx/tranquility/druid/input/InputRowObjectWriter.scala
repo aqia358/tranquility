@@ -83,7 +83,7 @@ class InputRowObjectWriter(
 
     for (fieldName <- row.getDimensions.asScala) {
       if (!requiredFields.contains(fieldName) && fieldName != timestampSpec.getTimestampColumn) {
-        jg.writeObjectField(fieldName, row.getRaw(fieldName))
+        jg.writeObjectField(fieldName, String.valueOf(row.getRaw(fieldName)))
       }
     }
 

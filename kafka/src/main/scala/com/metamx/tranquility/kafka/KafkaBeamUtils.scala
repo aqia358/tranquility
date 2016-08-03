@@ -19,6 +19,7 @@
 
 package com.metamx.tranquility.kafka
 
+import com.metamx.common.scala.untyped.Dict
 import com.metamx.tranquility.config.DataSourceConfig
 import com.metamx.tranquility.druid.DruidBeams
 import com.metamx.tranquility.druid.DruidLocation
@@ -47,5 +48,14 @@ object KafkaBeamUtils
       .curator(curator)
       .finagleRegistry(finagleRegistry)
       .buildTranquilizer(config.tranquilizerBuilder())
+  }
+
+  def useInputTopicAsDecodeTopic(topic: String, config: DataSourceConfig[PropertiesBasedKafkaConfig]):DataSourceConfig[PropertiesBasedKafkaConfig] = {
+    val dataSchema = config.specMap.get("dataSchema").get.asInstanceOf[Dict]
+    val parser = dataSchema.get("parser").get.asInstanceOf[Dict]
+    val avroBytesDecoder = parser.get("avroBytesDecoder").get.asInstanceOf[Dict]
+    val subjectAndIdConverter = avroBytesDecoder.get("subjectAndIdConverter").get.asInstanceOf[Dict]
+    val map = config.specMap.updated("dataSchema", dataSchema.updated("parser", parser.updated("avroBytesDecoder", avroBytesDecoder.updated("subjectAndIdConverter", subjectAndIdConverter.updated("topic", topic)))))
+    config.copy(config.dataSource,config.propertiesBasedConfig, map)
   }
 }

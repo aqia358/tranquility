@@ -60,6 +60,10 @@ public abstract class PropertiesBasedKafkaConfig extends PropertiesBasedConfig
   @Default("false")
   public abstract Boolean useTopicAsDataSource();
 
+  @Config("useInputTopicAsDecodeTopic")
+  @Default("true")
+  public abstract Boolean useInputTopicAsDecodeTopic();
+
   @Config("topicPattern.priority")
   @Default("1")
   public abstract Integer getTopicPatternPriority();

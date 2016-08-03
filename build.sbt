@@ -50,12 +50,8 @@ val coreDependencies = Seq(
   "org.slf4j" % "jul-to-slf4j" % "1.7.12" force() force(),
   "org.apache.httpcomponents" % "httpclient" % apacheHttpVersion force(),
   "org.apache.httpcomponents" % "httpcore" % apacheHttpVersion force(),
-
-  // Curator uses Jackson 1.x internally, and older version cause problems with service discovery.
   "org.codehaus.jackson" % "jackson-core-asl" % jacksonOneVersion force(),
   "org.codehaus.jackson" % "jackson-mapper-asl" % jacksonOneVersion force(),
-
-  // We use Jackson 2.x internally (and so does Druid).
   "com.fasterxml.jackson.core" % "jackson-core" % jacksonTwoVersion force(),
   "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonTwoVersion force(),
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonTwoVersion force(),
@@ -161,26 +157,15 @@ val kafkaTestDependencies = Seq(
 
 lazy val commonSettings = Seq(
   organization := "io.druid",
-
   javaOptions := Seq("-Xms512m", "-Xmx512m", "-XX:MaxPermSize=256M"),
-
-  // Target Java 7
   scalacOptions += "-target:jvm-1.7",
   javacOptions in compile ++= Seq("-source", "1.7", "-target", "1.7"),
-
-  // resolve-term-conflict:object since storm-core has a package and object with the same name
   scalacOptions := Seq("-feature", "-deprecation", "-Yresolve-term-conflict:object"),
-
   licenses := Seq("Apache License, Version 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
-
   homepage := Some(url("https://github.com/druid-io/tranquility")),
-
   publishMavenStyle := true,
-
   publishTo := Some("releases" at "https://oss.sonatype.org/service/local/staging/deploy/maven2/"),
-
   pomIncludeRepository := { _ => false },
-
   pomExtra := (
     <scm>
       <url>https://github.com/druid-io/tranquility.git</url>
@@ -193,7 +178,6 @@ lazy val commonSettings = Seq(
           <organizationUrl>http://druid.io/</organizationUrl>
         </developer>
       </developers>),
-
   fork in Test := true
 ) ++ releaseSettings ++ net.virtualvoid.sbt.graph.Plugin.graphSettings ++ Seq(
   ReleaseKeys.publishArtifactsAction := PgpKeys.publishSigned.value

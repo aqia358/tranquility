@@ -60,10 +60,14 @@ public class TranquilityEventWriter
       FinagleRegistry finagleRegistry
   )
   {
-    this.dataSourceConfig = dataSourceConfig;
+    if(dataSourceConfig.propertiesBasedConfig().useInputTopicAsDecodeTopic()){
+      this.dataSourceConfig = KafkaBeamUtils.useInputTopicAsDecodeTopic(topic, dataSourceConfig);
+    } else {
+      this.dataSourceConfig = dataSourceConfig;
+    }
     this.tranquilizer = KafkaBeamUtils.createTranquilizer(
         topic,
-        dataSourceConfig,
+        this.dataSourceConfig,
         curator,
         finagleRegistry
     );
