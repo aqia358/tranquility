@@ -24,6 +24,7 @@ import com.metamx.common.scala.net.curator.Disco;
 import com.metamx.tranquility.config.DataSourceConfig;
 import com.metamx.tranquility.finagle.FinagleRegistry;
 import com.metamx.tranquility.finagle.FinagleRegistryConfig;
+import com.metamx.tranquility.kafka.KafkaBeamUtils;
 import com.metamx.tranquility.kafka.model.MessageCounters;
 import com.metamx.tranquility.kafka.model.PropertiesBasedKafkaConfig;
 import org.apache.curator.RetryPolicy;
@@ -163,7 +164,14 @@ public class WriterController
           )
       );
     }
-
+    if (dataSourceConfig.propertiesBasedConfig().useInputTopicAsDecodeTopic()) {
+      try {
+        dataSourceConfig = KafkaBeamUtils.useInputTopicAsDecodeTopic(topic, dataSourceConfig);
+      }
+      catch (Exception e) {
+        log.warn("Can't use input topic as decode topic.");
+      }
+    }
     return new TranquilityEventWriter(
         topic,
         dataSourceConfig,

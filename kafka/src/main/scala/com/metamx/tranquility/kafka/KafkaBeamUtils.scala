@@ -19,6 +19,7 @@
 
 package com.metamx.tranquility.kafka
 
+import com.metamx.common.scala.untyped.Dict
 import com.metamx.tranquility.config.DataSourceConfig
 import com.metamx.tranquility.druid.DruidBeams
 import com.metamx.tranquility.druid.DruidLocation
@@ -28,15 +29,13 @@ import com.metamx.tranquility.tranquilizer.Tranquilizer
 import org.apache.curator.framework.CuratorFramework
 import scala.reflect.runtime.universe.typeTag
 
-object KafkaBeamUtils
-{
+object KafkaBeamUtils {
   def createTranquilizer(
-    topic: String,
-    config: DataSourceConfig[PropertiesBasedKafkaConfig],
-    curator: CuratorFramework,
-    finagleRegistry: FinagleRegistry
-  ): Tranquilizer[Array[Byte]] =
-  {
+                          topic: String,
+                          config: DataSourceConfig[PropertiesBasedKafkaConfig],
+                          curator: CuratorFramework,
+                          finagleRegistry: FinagleRegistry
+                          ): Tranquilizer[Array[Byte]] = {
     DruidBeams.fromConfig(config, typeTag[Array[Byte]])
       .location(
         DruidLocation.create(
@@ -47,5 +46,18 @@ object KafkaBeamUtils
       .curator(curator)
       .finagleRegistry(finagleRegistry)
       .buildTranquilizer(config.tranquilizerBuilder())
+  }
+
+  def useInputTopicAsDecodeTopic(topic: String, config: DataSourceConfig[PropertiesBasedKafkaConfig]): DataSourceConfig[PropertiesBasedKafkaConfig] = {
+    val dataSchema = config.specMap.get("dataSchema").get.asInstanceOf[Dict]
+    val parser = dataSchema.get("parser").get.asInstanceOf[Dict]
+    if ("avro_stream".equals(parser.get("type").toString)) {
+      val avroBytesDecoder = parser.get("avroBytesDecoder").get.asInstanceOf[Dict]
+      val subjectAndIdConverter = avroBytesDecoder.get("subjectAndIdConverter").get.asInstanceOf[Dict]
+      val map = config.specMap.updated("dataSchema", dataSchema.updated("parser", parser.updated("avroBytesDecoder", avroBytesDecoder.updated("subjectAndIdConverter", subjectAndIdConverter.updated("topic", topic)))))
+      config.copy(config.dataSource, config.propertiesBasedConfig, map)
+    } else {
+      config
+    }
   }
 }

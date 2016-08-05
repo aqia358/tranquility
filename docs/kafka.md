@@ -33,6 +33,7 @@ These Kafka-specific properties, if used, may be specified either at the global 
 |`topicPattern`|A regular expression used to match Kafka topics to dataSource configurations. See "Matching Topics to Data Sources" for details.|{match nothing}, must be provided|
 |`topicPattern.priority`|If multiple topicPatterns match the same topic name, the highest priority dataSource configuration will be used. A higher number indicates a higher priority. See "Matching Topics to Data Sources" for details.|1|
 |`useTopicAsDataSource`|Use the Kafka topic as the dataSource name instead of the one provided in the configuration file. Useful when combined with a topicPattern that matches more than one Kafka topic. See "Matching Topics to Data Sources" for details.|false|
+|`useInputTopicAsDecodeTopic`|Use the topic which used by kafka consumer as the avro stream decoder's topic. Useful when consume multiply topic with different avro schema.|true|
 |`reportDropsAsExceptions`|Whether or not dropped messages will cause an exception and terminate the application.|false|
 
 ### Running
