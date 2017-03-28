@@ -34,6 +34,7 @@ import kafka.consumer.Whitelist;
 import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.message.MessageAndMetadata;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -42,6 +43,8 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.io.DataOutputStream;
+import java.net.Socket;
 
 /**
  * Spawns a number of threads to read messages from Kafka topics and write them by calling
@@ -66,6 +69,10 @@ public class KafkaConsumer
   private final int numThreads;
   private final int commitMillis;
   private final WriterController writerController;
+  private final String graphiteHost;
+  private final Integer graphitePort;
+  private final String graphitePrefix;
+  private final String groupId;
 
   private Map<String, MessageCounters> previousMessageCounters = new HashMap<>();
 
@@ -92,6 +99,10 @@ public class KafkaConsumer
     this.commitThread = new Thread(createCommitRunnable());
     this.commitThread.setName("KafkaConsumer-CommitThread");
     this.commitThread.setDaemon(true);
+    this.graphiteHost = globalConfig.getGraphiteHost();
+    this.graphitePort = globalConfig.getGraphitePort();
+    this.graphitePrefix = globalConfig.getGraphitePrefix();
+    this.groupId = globalConfig.getKafkaGroupId();
   }
 
   public void start()
@@ -133,6 +144,33 @@ public class KafkaConsumer
     commitThread.join();
   }
 
+  void sendMetrics(Map<String, MessageCounters> countsSinceLastCommit) {
+    Socket conn = null;
+    log.info("start send metrics to graphite");
+    try {
+      conn = new Socket(this.graphiteHost, this.graphitePort);
+      DataOutputStream dos = new DataOutputStream(conn.getOutputStream());
+      for (Map.Entry<String, MessageCounters> entry : countsSinceLastCommit.entrySet()) {
+        long time = System.currentTimeMillis()/1000;
+        MessageCounters counters = entry.getValue();
+        String data = this.graphitePrefix + "." + entry.getKey() + "." + this.groupId + ".drop " + counters.getDroppedCount() + " " + time + "\n";
+        dos.writeBytes(data);
+        data = this.graphitePrefix + "." + entry.getKey() + "." + this.groupId + ".receive " + counters.getReceivedCount() + " " + time + "\n";
+        dos.writeBytes(data);
+        data = this.graphitePrefix + "." + entry.getKey() + "." + this.groupId + ".sent " + counters.getSentCount() + " " + time + "\n";
+        dos.writeBytes(data);
+        data = this.graphitePrefix + "." + entry.getKey() + "." + this.groupId + ".unparse " + counters.getUnparseableCount() + " " + time + "\n";
+        dos.writeBytes(data);
+        log.info(data);
+        dos.flush();
+      }
+      conn.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    log.info("end send metrics to graphite");
+  }
+
   void commit() throws InterruptedException
   {
     commitLock.writeLock().lockInterruptibly();
@@ -153,7 +191,8 @@ public class KafkaConsumer
       }
 
       previousMessageCounters = messageCounters;
-
+      if (!countsSinceLastCommit.isEmpty())
+        sendMetrics(countsSinceLastCommit);
       log.info(
           "Flushed %s pending messages in %sms and committed offsets in %sms.",
           countsSinceLastCommit.isEmpty() ? "0" : countsSinceLastCommit,

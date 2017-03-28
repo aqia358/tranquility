@@ -75,4 +75,16 @@ public abstract class PropertiesBasedKafkaConfig extends PropertiesBasedConfig
   @Config("reportParseExceptions")
   @Default("false")
   public abstract Boolean reportParseExceptions();
+
+  @Config("graphite.host")
+  @Default("10.3.46.15")
+  public abstract String getGraphiteHost();
+
+  @Config("graphite.port")
+  @Default("2013")
+  public abstract Integer getGraphitePort();
+
+  @Config("graphite.prefix")
+  @Default("tranquility")
+  public abstract String getGraphitePrefix();
 }
