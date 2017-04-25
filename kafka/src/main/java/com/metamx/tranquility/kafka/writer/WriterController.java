@@ -49,7 +49,7 @@ public class WriterController
   private static final RetryPolicy RETRY_POLICY = new ExponentialBackoffRetry(1000, 500, 30000);
 
   private List<DataSourceConfig<PropertiesBasedKafkaConfig>> dataSourceConfigList;
-  private Map<String, TranquilityEventWriter> writers = new ConcurrentHashMap<>();
+  private Map<String, List<TranquilityEventWriter>> writers = new ConcurrentHashMap<>();
   private Map<String, CuratorFramework> curators = new ConcurrentHashMap<>();
   private Map<String, FinagleRegistry> finagleRegistries = new ConcurrentHashMap<>();
 
@@ -84,9 +84,10 @@ public class WriterController
     }
   }
 
-  public synchronized TranquilityEventWriter getWriter(String topic)
+  public synchronized List<TranquilityEventWriter> getWriter(String topic)
   {
     if (!writers.containsKey(topic)) {
+      List<TranquilityEventWriter> writerList = new ArrayList<>();
       // create a EventWriter using the spec mapped to the first matching topicPattern
       for (DataSourceConfig<PropertiesBasedKafkaConfig> dataSourceConfig : dataSourceConfigList) {
         if (Pattern.matches(dataSourceConfig.propertiesBasedConfig().getTopicPattern(), topic)) {
@@ -95,12 +96,12 @@ public class WriterController
               topic,
               dataSourceConfig.dataSource()
           );
-          writers.put(topic, createWriter(topic, dataSourceConfig));
-          return writers.get(topic);
+          writerList.add(createWriter(topic, dataSourceConfig));
         }
       }
-
-      throw new RuntimeException(String.format("Kafka topicFilter allowed topic [%s] but no spec is mapped", topic));
+      if (writerList.size() == 0)
+        throw new RuntimeException(String.format("Kafka topicFilter allowed topic [%s] but no spec is mapped", topic));
+      writers.put(topic, writerList);
     }
 
     return writers.get(topic);
@@ -109,9 +110,11 @@ public class WriterController
   public Map<String, MessageCounters> flushAll() throws InterruptedException
   {
     Map<String, MessageCounters> flushedEvents = new HashMap<>();
-    for (Map.Entry<String, TranquilityEventWriter> entry : writers.entrySet()) {
-      entry.getValue().flush();
-      flushedEvents.put(entry.getKey(), entry.getValue().getMessageCounters());
+    for (Map.Entry<String, List<TranquilityEventWriter>> entry : writers.entrySet()) {
+      for (TranquilityEventWriter writer : entry.getValue()) {
+        writer.flush();
+        flushedEvents.put(entry.getKey(), writer.getMessageCounters());
+      }
     }
 
     return flushedEvents;
@@ -119,8 +122,10 @@ public class WriterController
 
   public void stop()
   {
-    for (Map.Entry<String, TranquilityEventWriter> entry : writers.entrySet()) {
-      entry.getValue().stop();
+    for (Map.Entry<String, List<TranquilityEventWriter>> entry : writers.entrySet()) {
+      for (TranquilityEventWriter writer : entry.getValue()) {
+        writer.stop();
+      }
     }
 
     for (Map.Entry<String, CuratorFramework> entry : curators.entrySet()) {

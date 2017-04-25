@@ -24,6 +24,7 @@ import com.metamx.common.logger.Logger;
 import com.metamx.tranquility.config.DataSourceConfig;
 import com.metamx.tranquility.kafka.model.MessageCounters;
 import com.metamx.tranquility.kafka.model.PropertiesBasedKafkaConfig;
+import com.metamx.tranquility.kafka.writer.TranquilityEventWriter;
 import com.metamx.tranquility.kafka.writer.WriterController;
 import io.druid.concurrent.Execs;
 import kafka.consumer.Consumer;
@@ -267,7 +268,10 @@ public class KafkaConsumer
 
                   try {
                     MessageAndMetadata<byte[], byte[]> data = kafkaIterator.next();
-                    writerController.getWriter(data.topic()).send(data.message());
+                    List<TranquilityEventWriter> writers = writerController.getWriter(data.topic());
+                    for (TranquilityEventWriter writer : writers) {
+                      writer.send(data.message());
+                    }
                   }
                   finally {
                     commitLock.readLock().unlock();
